@@ -1,0 +1,45 @@
+# Binaries
+azdiagram
+azdiagram.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+/dist/
+/bin/
+/out/
+
+# Go test cache and coverage
+*.test
+*.out
+coverage.html
+
+# Generated SVG output files
+*.svg
+!examples/**/*.svg
+
+# Azure Architecture Icons (download separately, do not redistribute)
+azure-icons/
+**/azure-icons/
+examples/azure-icons/
+
+# Dependency vendor directory (if used)
+vendor/
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

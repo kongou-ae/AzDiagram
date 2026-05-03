@@ -1,0 +1,19 @@
+version: 2
+
+builds:
+  - main: .
+    binary: azdiagram
+    goos:
+      - windows
+    goarch:
+      - amd64
+
+archives:
+  - format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  draft: false
+  prerelease: auto
