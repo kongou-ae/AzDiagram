@@ -1,12 +1,18 @@
 # AzDiagram
 
-Azure Bicep テンプレート（または ARM JSON テンプレート）から SVG アーキテクチャ図を生成する Go 製 CLI ツールです。
+Azure Bicep テンプレートから SVG アーキテクチャ図を生成する Go 製 CLI ツールです。
 
 ブログ記事やハンズオン資料などで使う「ちょっとした構成図」を、手書きせずに Bicep テンプレートから自動生成することを目的として作成しています。
 
 ## サンプル
 
-（[`example.bicep`](examples/example.bicep)）から（[`example.svg`](examples/example.svg)）を生成します
+![Example diagram](examples/example.svg)
+
+[`example.bicep`](examples/example.bicep) から上記の [`example.svg`](examples/example.svg) を以下のコマンドで生成できます。
+
+```bash
+azdiagram -i ./azure-icons -o ./examples/example.svg ./examples/example.bicep
+```
 
 ## 用途
 
@@ -16,18 +22,21 @@ Azure Bicep テンプレート（または ARM JSON テンプレート）から 
 
 ## 機能
 
-- Bicep を解析して SVG を出力
+- Bicep テンプレートを解析して SVG を出力
 - Hub & Spoke VNet レイアウトを自動検出・描画
 - サブネット、NSG、Route Table、Load Balancer、Private Endpoint などの関係を可視化
 - Microsoft 公式 Azure アーキテクチャアイコン（オプション）を使用
 
-**注意**：本ツールは、単一の bicep ファイルを利用することを想定しています。モジュールを利用した複雑な bicep ファイルには対応していません
+## 注意
+
+- 本ツールは、単一の bicep ファイルを利用することを想定しています。モジュールを利用した複雑な bicep ファイルには対応していません
+- Bicep ファイルを正規表現でパースしているので、リソースの設定や依存関係を完璧に反映していません
 
 ## インストール
 
-### ダウンロード（推奨）
+### アイコンのダウンロード（推奨）
 
-[Releases](https://github.com/kongou-ae/AzDiagram/releases) から最新の `azdiagram_windows_amd64.zip` をダウンロードして展開してください。
+[Releases](https://github.com/kongou-ae/AzDiagram/releases) から最新の `azdiagram_windows_amd64.zip` をダウンロードして回答してください
 
 ## 使い方
 
@@ -81,3 +90,7 @@ azdiagram -i ./azure-icons --include-types "Microsoft.Compute/virtualMachines,Mi
 - `Microsoft.CognitiveServices/accounts` (Azure OpenAI)
 - `Microsoft.Web/serverfarms`
 - `Microsoft.Web/sites`
+
+## ライセンス
+
+MIT License — 詳細は [LICENSE](LICENSE) を参照してください。
