@@ -950,20 +950,6 @@ resource spoke3Vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
     }
     subnets: [
       {
-        name: 'app-vnetint-subnet'
-        properties: {
-          addressPrefix: '10.3.3.0/24'
-          delegations: [
-            {
-              name: 'delegation'
-              properties: {
-                serviceName: 'Microsoft.Web/serverFarms'
-              }
-            }
-          ]
-        }
-      }
-      {
         name: 'aoai-subnet'
         properties: {
           addressPrefix: '10.3.1.0/24'
@@ -976,6 +962,20 @@ resource spoke3Vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
         name: 'app-pe-subnet'
         properties: {
           addressPrefix: '10.3.2.0/24'
+        }
+      }
+      {
+        name: 'app-vnetint-subnet'
+        properties: {
+          addressPrefix: '10.3.3.0/24'
+          delegations: [
+            {
+              name: 'delegation'
+              properties: {
+                serviceName: 'Microsoft.Web/serverFarms'
+              }
+            }
+          ]
         }
       }
     ]
@@ -1113,6 +1113,118 @@ resource spoke2ToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPee
   }
 }
 
+// ── Private DNS Zone: privatelink.blob.core.windows.net ──────────
+// Linked to the hub VNet so spokes can resolve via hub DNS.
+resource blobPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.blob.core.windows.net'
+  location: 'global'
+}
+
+resource blobPrivateDnsZoneHubLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: blobPrivateDnsZone
+  name: '${prefix}-hub-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: hubVnet.id
+    }
+  }
+}
+
+resource blobPrivateDnsZone2 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.blob.core.windows.net'
+  location: 'global'
+}
+
+
+resource blobPrivateDnsZoneSpoke1Link 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: blobPrivateDnsZone2
+  name: '${prefix}-spoke1-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: spoke1Vnet.id
+    }
+  }
+}
+
+// ── Private DNS Zone: privatelink.file.core.windows.net ──────────
+// Linked to the hub VNet so spokes can resolve via hub DNS.
+resource filePrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.file.core.windows.net'
+  location: 'global'
+}
+
+resource filePrivateDnsZoneHubLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: filePrivateDnsZone
+  name: '${prefix}-file-hub-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: hubVnet.id
+    }
+  }
+}
+
+// ── Private DNS Zone: privatelink.queue.core.windows.net ─────────
+resource queuePrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.queue.core.windows.net'
+  location: 'global'
+}
+
+resource queuePrivateDnsZoneHubLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: queuePrivateDnsZone
+  name: '${prefix}-queue-hub-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: hubVnet.id
+    }
+  }
+}
+
+// ── Private DNS Zone: privatelink.table.core.windows.net ─────────
+resource tablePrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.table.core.windows.net'
+  location: 'global'
+}
+
+resource tablePrivateDnsZoneHubLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: tablePrivateDnsZone
+  name: '${prefix}-table-hub-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: hubVnet.id
+    }
+  }
+}
+
+// ── Private DNS Zone: privatelink.database.windows.net ───────────
+resource sqlPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.database.windows.net'
+  location: 'global'
+}
+
+resource sqlPrivateDnsZoneHubLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: sqlPrivateDnsZone
+  name: '${prefix}-sql-hub-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: hubVnet.id
+    }
+  }
+}
+
+
+
 resource hubToSpoke3Peering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2023-11-01' = {
   parent: hubVnet
   name: 'hub-to-spoke3'
@@ -1124,6 +1236,8 @@ resource hubToSpoke3Peering 'Microsoft.Network/virtualNetworks/virtualNetworkPee
     allowGatewayTransit: true
   }
 }
+
+
 
 resource spoke3ToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2023-11-01' = {
   parent: spoke3Vnet
@@ -1140,15 +1254,6 @@ resource spoke3ToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPee
 // ════════════════════════════════════════════════════════════════════
 // Shared Services
 // ════════════════════════════════════════════════════════════════════
-
-resource diagStorage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: '${prefix}diagsa'
-  location: location
-  kind: 'StorageV2'
-  sku: {
-    name: 'Standard_LRS'
-  }
-}
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: '${prefix}-kv'

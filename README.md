@@ -77,6 +77,8 @@ azdiagram -i ./azure-icons --include-types "Microsoft.Compute/virtualMachines,Mi
 - `Microsoft.Network/networkSecurityGroups`
 - `Microsoft.Network/networkInterfaces`
 - `Microsoft.Network/privateEndpoints`
+- `Microsoft.Network/privateDnsZones`
+- `Microsoft.Network/privateDnsZones/virtualNetworkLinks`
 - `Microsoft.Network/publicIPAddresses`
 - `Microsoft.Network/azureFirewalls`
 - `Microsoft.Network/virtualNetworkGateways`

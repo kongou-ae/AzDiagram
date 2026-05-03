@@ -146,6 +146,9 @@ type Diagram struct {
 	// VNetIntConnections holds App Service → subnet VNet integration connections.
 	VNetIntConnections []*VNetIntConnection
 
+	// DNSLinks holds Private DNS Zone ↔ VNet links, rendered as solid lines.
+	DNSLinks []*DNSLinkConnection
+
 	// AnchoredLBs holds Load Balancers repositioned above their connected VMs.
 	// They are removed from their original subnet/standalone list by the builder.
 	AnchoredLBs []*Resource
@@ -167,6 +170,13 @@ type VNetIntConnection struct {
 	Subnet *SubnetContainer // target subnet
 }
 
+// DNSLinkConnection represents a Private DNS Zone ↔ VNet link, derived from a
+// Microsoft.Network/privateDnsZones/virtualNetworkLinks resource.
+type DNSLinkConnection struct {
+	Zone *Resource      // Microsoft.Network/privateDnsZones resource (the parent zone)
+	VNet *VNetContainer // target VNet container
+}
+
 // Edge represents a directed dependency arrow between two resources.
 type Edge struct {
 	// From and To are symbolic names.
@@ -186,6 +196,10 @@ type VNetContainer struct {
 
 	// Subnets derived from the VNet's properties.subnets.
 	Subnets []*SubnetContainer
+
+	// DNSZones holds Private DNS Zone resources whose VNet link targets this VNet.
+	// They are rendered directly below the VNet container.
+	DNSZones []*Resource
 
 	// Layout bounding box.
 	X, Y          float64

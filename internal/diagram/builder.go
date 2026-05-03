@@ -320,6 +320,42 @@ func Build(resources []*model.Resource) *model.Diagram {
 		}
 	}
 
+	// Build Private DNS Zone ↔ VNet links.
+	// A virtualNetworkLinks resource is converted into a DNSLinkConnection
+	// between its parent (Private DNS Zone) and the target VNet container.
+	// The link resource itself is not rendered as a card.
+	var dnsLinks []*model.DNSLinkConnection
+	dnsLinkAdded := make(map[[2]string]bool)
+	for _, r := range resources {
+		if r.Type != "microsoft.network/privatednszones/virtualnetworklinks" {
+			continue
+		}
+		assigned[r.SymbolicName] = true
+		zone, okZ := bySymbol[r.ParentSymbol]
+		if !okZ || zone == nil {
+			continue
+		}
+		if r.LinkedServiceSymbol == "" {
+			continue
+		}
+		vc := vnetContainerBySymbol(vnetContainers, r.LinkedServiceSymbol)
+		if vc == nil {
+			continue
+		}
+		key := [2]string{zone.SymbolicName, vc.Resource.SymbolicName}
+		if dnsLinkAdded[key] {
+			continue
+		}
+		dnsLinkAdded[key] = true
+		dnsLinks = append(dnsLinks, &model.DNSLinkConnection{Zone: zone, VNet: vc})
+		// Place the zone below its primary VNet (first association wins).
+		// Subsequent links to other VNets are still drawn as connector lines.
+		if !assigned[zone.SymbolicName] {
+			assigned[zone.SymbolicName] = true
+			vc.DNSZones = append(vc.DNSZones, zone)
+		}
+	}
+
 	// All remaining non-VNet resources are standalone.
 	var standalone []*model.Resource
 	for _, r := range resources {
@@ -548,6 +584,7 @@ func Build(resources []*model.Resource) *model.Diagram {
 		LBConnections:       lbConnections,
 		AnchoredLBs:         anchoredLBs,
 		VNetIntConnections:  vnetIntConns,
+		DNSLinks:            dnsLinks,
 	}
 }
 

@@ -82,9 +82,40 @@ func Render(d *model.Diagram) string {
 		renderVNetPeering(&sb, p.Local, p.Remote, i)
 	}
 
+	// ── Private DNS Zone ↔ VNet Links ─────────────────────────────────
+	// Rendered before VNet/standalone cards so the line appears underneath.
+	// Zones placed directly below a VNet (vc.DNSZones) use a comb connector.
+	// Secondary links to other VNets use the L-shaped renderDNSLink fallback.
+	for _, vc := range d.VNets {
+		if len(vc.DNSZones) > 0 {
+			renderDNSComb(&sb, vc)
+		}
+	}
+	// Build a set of (zone, vnet) pairs already covered by the comb renderer
+	// so we skip them in the secondary-link loop below.
+	combCovered := make(map[[2]string]bool)
+	for _, vc := range d.VNets {
+		for _, z := range vc.DNSZones {
+			combCovered[[2]string{z.SymbolicName, vc.Resource.SymbolicName}] = true
+		}
+	}
+	for _, dl := range d.DNSLinks {
+		key := [2]string{dl.Zone.SymbolicName, dl.VNet.Resource.SymbolicName}
+		if !combCovered[key] {
+			renderDNSLink(&sb, dl.Zone, dl.VNet)
+		}
+	}
+
 	// ── VNet containers ──────────────────────────────────────────────────────
 	for _, vc := range d.VNets {
 		renderVNet(&sb, vc)
+	}
+
+	// ── DNS Zone cards (placed below their linked VNets) ────────────────────
+	for _, vc := range d.VNets {
+		for _, z := range vc.DNSZones {
+			renderCard(&sb, z)
+		}
 	}
 
 	// ── Standalone resource cards ─────────────────────────────────────────────
@@ -249,6 +280,176 @@ func renderVNetPeering(sb *strings.Builder, a, b *model.VNetContainer, idx int) 
 	fmt.Fprintf(sb,
 		`<text x="%.1f" y="%.1f" font-family=%q font-size="9" fill="%s" font-style="italic" text-anchor="middle">Peering</text>`+"\n",
 		labelX, labelY, fontFamily, colorVNetStroke)
+}
+
+// renderDNSComb draws a comb-shaped connector between a VNet container and all
+// its directly-below DNS Zone cards.
+//
+// Structure:
+//
+//		  VNet bottom centre
+//		        |
+//		  trunk (vertical)
+//		        |
+//		  row bar (horizontal) ─── drop to each zone top
+//		  (repeated per row)
+//
+// The "DNS Link" label is placed on the trunk segment (or the first gap if the
+// trunk is very short).
+func renderDNSComb(sb *strings.Builder, vc *model.VNetContainer) {
+	if len(vc.DNSZones) == 0 {
+		return
+	}
+
+	// Group zones by row (same Y).
+	type row struct {
+		y     float64
+		zones []*model.Resource
+	}
+	var rows []row
+	rowIndex := make(map[float64]int)
+	for _, z := range vc.DNSZones {
+		if idx, ok := rowIndex[z.Y]; ok {
+			rows[idx].zones = append(rows[idx].zones, z)
+		} else {
+			rowIndex[z.Y] = len(rows)
+			rows = append(rows, row{y: z.Y, zones: []*model.Resource{z}})
+		}
+	}
+
+	// Sort rows by Y.
+	for i := 1; i < len(rows); i++ {
+		for j := i; j > 0 && rows[j].y < rows[j-1].y; j-- {
+			rows[j], rows[j-1] = rows[j-1], rows[j]
+		}
+	}
+
+	trunkX := vc.X + vc.Width/2
+	trunkY1 := vc.Y + vc.Height // VNet bottom
+
+	// Draw trunk from VNet bottom down to first row top.
+	firstRowY := rows[0].y
+	if firstRowY > trunkY1 {
+		fmt.Fprintf(sb,
+			`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1.5"/>`+"\n",
+			trunkX, trunkY1, trunkX, firstRowY, colorEdge)
+	}
+
+	// "DNS Link" label on the trunk gap.
+	const dnsLabelW = 50.0
+	const dnsLabelH = 12.0
+	labelX := trunkX
+	labelY := (trunkY1+firstRowY)/2 + 4
+	if firstRowY-trunkY1 < 10 {
+		labelY = firstRowY + dnsLabelH + 2
+	}
+	fmt.Fprintf(sb,
+		`<rect x="%.1f" y="%.1f" width="%.0f" height="%.0f" rx="2" fill="%s" opacity="0.85"/>`+"\n",
+		labelX-dnsLabelW/2, labelY-dnsLabelH+2, dnsLabelW, dnsLabelH, "#F8FAFC")
+	fmt.Fprintf(sb,
+		`<text x="%.1f" y="%.1f" font-family=%q font-size="9" fill="%s" font-style="italic" text-anchor="middle">DNS Link</text>`+"\n",
+		labelX, labelY, fontFamily, colorEdge)
+
+	for ri, r := range rows {
+		// Collect zone-centre X values.
+		var xs []float64
+		for _, z := range r.zones {
+			xs = append(xs, z.X+z.Width/2)
+		}
+		// Sort xs.
+		for i := 1; i < len(xs); i++ {
+			for j := i; j > 0 && xs[j] < xs[j-1]; j-- {
+				xs[j], xs[j-1] = xs[j-1], xs[j]
+			}
+		}
+
+		barY := r.y // top of zone cards in this row
+
+		if len(xs) == 1 {
+			// Single zone in row: vertical drop from trunk / previous row bottom.
+			var dropFromY float64
+			if ri == 0 {
+				dropFromY = trunkY1
+			} else {
+				dropFromY = rows[ri-1].y + rows[ri-1].zones[0].Height // previous row zone bottom
+			}
+			if xs[0] != trunkX || ri > 0 {
+				// Horizontal jog from trunk to this zone's x, then drop.
+				path := fmt.Sprintf("M %.1f,%.1f V %.1f H %.1f V %.1f",
+					trunkX, dropFromY, barY-10, xs[0], barY)
+				fmt.Fprintf(sb,
+					`<path d="%s" fill="none" stroke="%s" stroke-width="1.5"/>`+"\n",
+					path, colorEdge)
+			}
+			continue
+		}
+
+		// Multiple zones: draw a horizontal bar spanning leftmost to rightmost
+		// zone centre, with vertical drops to each zone top.
+		barX1 := xs[0]
+		barX2 := xs[len(xs)-1]
+		barMidX := (barX1 + barX2) / 2
+
+		// Trunk / feeder: from trunk top down to bar mid, then horizontal to bar extents.
+		var feederFromY float64
+		if ri == 0 {
+			feederFromY = trunkY1
+		} else {
+			feederFromY = rows[ri-1].y + rows[ri-1].zones[0].Height
+		}
+		feederToY := barY - 10 // 10px above zone top, where bar sits
+
+		// Vertical feeder from above down to bar level, then horizontal bar.
+		path := fmt.Sprintf("M %.1f,%.1f V %.1f H %.1f",
+			trunkX, feederFromY, feederToY, barMidX)
+		fmt.Fprintf(sb,
+			`<path d="%s" fill="none" stroke="%s" stroke-width="1.5"/>`+"\n",
+			path, colorEdge)
+		// Horizontal bar.
+		fmt.Fprintf(sb,
+			`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1.5"/>`+"\n",
+			barX1, feederToY, barX2, feederToY, colorEdge)
+		// Vertical drops to each zone top.
+		for _, x := range xs {
+			fmt.Fprintf(sb,
+				`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1.5"/>`+"\n",
+				x, feederToY, x, barY, colorEdge)
+		}
+	}
+}
+
+// renderDNSLink draws an L-shaped connector for secondary VNet links
+// (zones NOT placed directly below a VNet).
+func renderDNSLink(sb *strings.Builder, zone *model.Resource, vc *model.VNetContainer) {
+	if zone == nil || vc == nil || zone.Width == 0 {
+		return
+	}
+	var x1, y1, x2, y2 float64
+	if vc.X+vc.Width <= zone.X {
+		x1 = vc.X + vc.Width
+		y1 = vc.Y + vc.Height/2
+		x2 = zone.X
+		y2 = zone.Y + zone.Height/2
+	} else {
+		x1 = zone.X + zone.Width
+		y1 = zone.Y + zone.Height/2
+		x2 = vc.X
+		y2 = vc.Y + vc.Height/2
+	}
+	path := fmt.Sprintf("M %.1f,%.1f V %.1f H %.1f", x1, y1, y2, x2)
+	fmt.Fprintf(sb,
+		`<path d="%s" fill="none" stroke="%s" stroke-width="1.5"/>`+"\n",
+		path, colorEdge)
+	const dnsLabelW = 50.0
+	const dnsLabelH = 12.0
+	labelX := (x1 + x2) / 2
+	labelY := y2 + 4
+	fmt.Fprintf(sb,
+		`<rect x="%.1f" y="%.1f" width="%.0f" height="%.0f" rx="2" fill="%s" opacity="0.85"/>`+"\n",
+		labelX-dnsLabelW/2, labelY-dnsLabelH+2, dnsLabelW, dnsLabelH, "#F8FAFC")
+	fmt.Fprintf(sb,
+		`<text x="%.1f" y="%.1f" font-family=%q font-size="9" fill="%s" font-style="italic" text-anchor="middle">DNS Link</text>`+"\n",
+		labelX, labelY, fontFamily, colorEdge)
 }
 
 func renderVNet(sb *strings.Builder, vc *model.VNetContainer) {

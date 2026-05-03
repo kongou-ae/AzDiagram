@@ -72,6 +72,12 @@ var (
 	//   serverFarmId: planSym.id
 	// Captures: [1] App Service Plan symbolic name
 	reServerFarmID = regexp.MustCompile(`serverFarmId:\s*(\w+)\.id`)
+
+	// Matches virtualNetwork: { id: vnetSym.id } inside a privateDnsZones/virtualNetworkLinks body.
+	// (?m)^\s*virtualNetwork: anchors at line start to avoid matching the
+	// substring inside `remoteVirtualNetwork:` used by VNet peerings.
+	// Captures: [1] target VNet symbolic name
+	reDNSLinkVNet = regexp.MustCompile(`(?m)^\s*virtualNetwork:\s*\{[^}]*id:\s*(\w+)\.id`)
 )
 
 // ParseFile parses a Bicep source file and returns a slice of model.Resource.
@@ -166,6 +172,13 @@ func ParseFile(content string) ([]*model.Resource, error) {
 		// Private endpoint: record the linked service symbol.
 		if strings.Contains(res.Type, "microsoft.network/privateendpoints") {
 			if m := rePELinkedService.FindStringSubmatch(body); m != nil {
+				res.LinkedServiceSymbol = m[1]
+			}
+		}
+
+		// Private DNS Zone VNet Link: record the target VNet symbolic name.
+		if res.Type == "microsoft.network/privatednszones/virtualnetworklinks" {
+			if m := reDNSLinkVNet.FindStringSubmatch(body); m != nil {
 				res.LinkedServiceSymbol = m[1]
 			}
 		}
