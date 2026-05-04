@@ -9,14 +9,16 @@ import (
 	"github.com/kongou-ae/AzDiagram/internal/generator"
 )
 
-// Run with -update to regenerate the golden file:
+// Run with -update to regenerate golden files:
 //
-//	go test ./internal/generator/ -run TestGolden_Webapp -update
+//	go test ./internal/generator/ -update
 var update = flag.Bool("update", false, "update golden files")
 
-func TestGolden_Webapp(t *testing.T) {
+func goldenTest(t *testing.T, bicepFile, goldenFile string) {
+	t.Helper()
+
 	opts := generator.Options{
-		InputFile: filepath.Join("testdata", "webapp.bicep"),
+		InputFile: filepath.Join("testdata", bicepFile),
 		// IconsDir intentionally omitted: icon files are git-ignored.
 	}
 
@@ -25,7 +27,7 @@ func TestGolden_Webapp(t *testing.T) {
 		t.Fatalf("GenerateSVG: %v", err)
 	}
 
-	goldenPath := filepath.Join("testdata", "webapp.golden")
+	goldenPath := filepath.Join("testdata", goldenFile)
 
 	if *update {
 		if err := os.MkdirAll("testdata", 0755); err != nil {
@@ -40,10 +42,15 @@ func TestGolden_Webapp(t *testing.T) {
 
 	want, err := os.ReadFile(goldenPath)
 	if err != nil {
-		t.Fatalf("read golden %s: %v\n\nTo create it, run:\n  go test ./internal/generator/ -run TestGolden_Webapp -update", goldenPath, err)
+		t.Fatalf("read golden %s: %v\n\nTo create it, run:\n  go test ./internal/generator/ -run %s -update",
+			goldenPath, err, t.Name())
 	}
 
 	if got != string(want) {
-		t.Errorf("SVG output does not match golden file.\n\nTo update it, run:\n  go test ./internal/generator/ -run TestGolden_Webapp -update")
+		t.Errorf("SVG output does not match golden file.\n\nTo update it, run:\n  go test ./internal/generator/ -run %s -update",
+			t.Name())
 	}
 }
+
+func TestGolden_Example(t *testing.T) { goldenTest(t, "example.bicep", "example.golden") }
+func TestGolden_Main(t *testing.T)    { goldenTest(t, "main.bicep", "main.golden") }

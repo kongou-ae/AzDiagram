@@ -44,6 +44,8 @@ var officialIconKeywords = map[string][]string{
 	"microsoft.network/publicipaddresses":      {"public-ip-addresses"},
 	"microsoft.network/networkinterfaces":      {"network-interfaces"},
 	"microsoft.network/privateendpoints":       {"private-endpoint"},
+	"microsoft.network/privatednszones":        {"dns-private-zones", "dns-zones", "private-dns"},
+	"microsoft.network/privatednszones/virtualnetworklinks": {"virtual-network", "virtual-networks"},
 	"microsoft.network/azurefirewalls":         {"firewalls"},
 	"microsoft.network/bastionhosts":           {"bastions"},
 	"microsoft.network/frontdoors":             {"front-door"},

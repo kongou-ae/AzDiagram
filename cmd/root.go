@@ -23,6 +23,8 @@ const defaultIncludeTypes = "Microsoft.Network/virtualNetworks," +
 	"Microsoft.Network/loadBalancers," +
 	"Microsoft.Network/networkInterfaces," +
 	"Microsoft.Network/privateEndpoints," +
+	"Microsoft.Network/privateDnsZones," +
+	"Microsoft.Network/privateDnsZones/virtualNetworkLinks," +
 	"Microsoft.Compute/virtualMachines," +
 	"Microsoft.KeyVault/vaults," +
 	"Microsoft.Sql/servers," +

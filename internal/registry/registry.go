@@ -38,6 +38,8 @@ var table = map[string]entry{
 	"microsoft.network/publicipaddresses":       {"PIP", model.CategoryNetworking, "#2563EB"},
 	"microsoft.network/networkinterfaces":       {"NIC", model.CategoryNetworking, "#2563EB"},
 	"microsoft.network/privateendpoints":        {"PE", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/privatednszones/virtualnetworklinks": {"DNS Link", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/privatednszones":         {"Private DNS", model.CategoryNetworking, "#2563EB"},
 	"microsoft.network/azurefirewalls":          {"FW", model.CategoryNetworking, "#2563EB"},
 	"microsoft.network/bastionhosts":            {"Bastion", model.CategoryNetworking, "#2563EB"},
 	"microsoft.network/frontdoors":              {"FD", model.CategoryNetworking, "#2563EB"},

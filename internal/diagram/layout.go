@@ -53,6 +53,13 @@ const (
 	vnetGapX = 40.0
 	vnetGapY = 20.0 // vertical gap between stacked spoke VNets
 
+	// Gap between VNet bottom and DNS Zone cards below it.
+	dnsZoneGapY = 20.0
+
+	// Gap between the last item below a VNet (DNS zones or VNet bottom) and
+	// an Azure Bastion Developer card placed below the VNet.
+	bastionDevGapY = 20.0
+
 	// Resource-group / subscription padding.
 	rgPadTop    = 24.0 // space for label
 	rgPadSide   = 10.0
@@ -77,10 +84,26 @@ func Layout(d *model.Diagram) {
 			peeringCount[d.VNets[j].Resource.SymbolicName]
 	})
 
-	// ── 1. Identify hub (peeringCount > 1) and its direct spoke symbols ───
+	// ── 1. Identify hub and its direct spoke symbols ─────────────────────
+	// Primary:  the VNet with the most peerings (peeringCount > 1).
+	// Fallback: if no VNet has more than one peering, pick the first VNet
+	//           that contains AzureFirewallSubnet or GatewaySubnet.
 	var hubVC *model.VNetContainer
 	if len(d.VNets) > 0 && peeringCount[d.VNets[0].Resource.SymbolicName] > 1 {
 		hubVC = d.VNets[0]
+	}
+	if hubVC == nil {
+		for _, vc := range d.VNets {
+			for _, sc := range vc.Subnets {
+				if sc.Name == "AzureFirewallSubnet" || sc.Name == "GatewaySubnet" {
+					hubVC = vc
+					break
+				}
+			}
+			if hubVC != nil {
+				break
+			}
+		}
 	}
 	spokeSymbols := make(map[string]bool)
 	if hubVC != nil {
@@ -121,7 +144,8 @@ func Layout(d *model.Diagram) {
 	var maxSpokeW float64
 	for _, vc := range spokeVCs {
 		layoutVNet(vc, spokeStartX, curSpokeY, false)
-		curSpokeY += vc.Height + vnetGapY
+		// Include DNS Zone card height so the next spoke doesn't overlap.
+		curSpokeY += vc.Height + dnsZonesBlockHeight(vc) + bastionDevBlockHeight(vc) + vnetGapY
 		maxSpokeW = math.Max(maxSpokeW, vc.Width)
 	}
 
@@ -133,6 +157,51 @@ func Layout(d *model.Diagram) {
 	for _, vc := range otherVCs {
 		layoutVNet(vc, curOtherX, 0, false)
 		curOtherX += vc.Width + vnetGapX
+	}
+
+	// ── 5.5. Position DNS Zone cards below their associated VNets ─────────
+	// Each DNS zone is placed below its VNet, wrapping into multiple rows so
+	// the total width never exceeds the VNet width.  Each row is centred under
+	// the VNet independently.
+	for _, vc := range d.VNets {
+		if len(vc.DNSZones) == 0 {
+			continue
+		}
+		// How many cards fit in one row without exceeding the VNet width?
+		maxPerRow := int((vc.Width + cardGapX) / (cardW + cardGapX))
+		if maxPerRow < 1 {
+			maxPerRow = 1
+		}
+		zoneBaseY := vc.Y + vc.Height + dnsZoneGapY
+		for i, z := range vc.DNSZones {
+			row := i / maxPerRow
+			col := i % maxPerRow
+			// Count zones in this specific row to centre it.
+			rowStart := row * maxPerRow
+			rowEnd := rowStart + maxPerRow
+			if rowEnd > len(vc.DNSZones) {
+				rowEnd = len(vc.DNSZones)
+			}
+			rowCount := rowEnd - rowStart
+			rowW := float64(rowCount)*cardW + float64(rowCount-1)*cardGapX
+			rowStartX := vc.X + vc.Width/2 - rowW/2
+			z.X = rowStartX + float64(col)*(cardW+cardGapX)
+			z.Y = zoneBaseY + float64(row)*(cardH+dnsZoneGapY)
+			z.Width = cardW
+			z.Height = cardH
+		}
+	}
+
+	// ── 5.6. Position Bastion Developer card below its VNet (below DNS zones if any) ────
+	for _, vc := range d.VNets {
+		if vc.BastionDev == nil {
+			continue
+		}
+		baseY := vc.Y + vc.Height + dnsZonesBlockHeight(vc) + bastionDevGapY
+		vc.BastionDev.X = vc.X + vc.Width/2 - cardW/2
+		vc.BastionDev.Y = baseY
+		vc.BastionDev.Width = cardW
+		vc.BastionDev.Height = cardH
 	}
 
 	// ── 6. Compute total VNet width for standalone grid placement ─────────
@@ -210,6 +279,31 @@ func Layout(d *model.Diagram) {
 	applyOffset(d, diagramMargin, diagramMargin)
 	d.Width = innerW + 2*diagramMargin
 	d.Height = innerH + 2*diagramMargin
+}
+
+// bastionDevBlockHeight returns the vertical space consumed by a Bastion Developer
+// card placed below a VNet (including the gap). Returns 0 when vc has no BastionDev.
+func bastionDevBlockHeight(vc *model.VNetContainer) float64 {
+	if vc.BastionDev == nil {
+		return 0
+	}
+	return bastionDevGapY + cardH
+}
+
+// dnsZonesBlockHeight returns the total vertical space consumed by DNS Zone cards
+// placed below vc (including the initial gap from the VNet bottom).
+// Returns 0 when vc has no DNS zones.  vc.Width must already be set.
+func dnsZonesBlockHeight(vc *model.VNetContainer) float64 {
+	if len(vc.DNSZones) == 0 {
+		return 0
+	}
+	maxPerRow := int((vc.Width + cardGapX) / (cardW + cardGapX))
+	if maxPerRow < 1 {
+		maxPerRow = 1
+	}
+	rows := (len(vc.DNSZones) + maxPerRow - 1) / maxPerRow
+	// dnsZoneGapY (gap before first row) + rows×cardH + (rows-1)×dnsZoneGapY (inter-row gaps)
+	return float64(rows) * (cardH + dnsZoneGapY)
 }
 
 // layoutVNet positions all subnets (and their resources) within a VNet container.
@@ -561,6 +655,16 @@ func contentBounds(d *model.Diagram, vnetTotalW, standaloneStartX float64) (w, h
 	for _, vc := range d.VNets {
 		maxX = math.Max(maxX, vc.X+vc.Width)
 		maxY = math.Max(maxY, vc.Y+vc.Height)
+		// Include DNS zones placed below the VNet.
+		for _, z := range vc.DNSZones {
+			maxX = math.Max(maxX, z.X+z.Width)
+			maxY = math.Max(maxY, z.Y+z.Height)
+		}
+		// Include Bastion Developer card placed below the VNet.
+		if vc.BastionDev != nil {
+			maxX = math.Max(maxX, vc.BastionDev.X+vc.BastionDev.Width)
+			maxY = math.Max(maxY, vc.BastionDev.Y+vc.BastionDev.Height)
+		}
 		// Include linked services positioned outside the VNet.
 		for _, sc := range vc.Subnets {
 			for _, pair := range sc.PEPairs {
@@ -602,6 +706,14 @@ func applyOffset(d *model.Diagram, dx, dy float64) {
 		vc.Y += dy
 		vc.Resource.X += dx
 		vc.Resource.Y += dy
+		for _, z := range vc.DNSZones {
+			z.X += dx
+			z.Y += dy
+		}
+		if vc.BastionDev != nil {
+			vc.BastionDev.X += dx
+			vc.BastionDev.Y += dy
+		}
 		for _, sc := range vc.Subnets {
 			sc.X += dx
 			sc.Y += dy

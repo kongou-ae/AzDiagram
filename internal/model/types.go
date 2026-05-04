@@ -72,6 +72,25 @@ type Resource struct {
 	// Populated from ipConfigurations[].properties.subnet.id in the Bicep source.
 	SubnetRef *SubnetRefDef
 
+	// MgmtSubnetRef, if non-nil, identifies the management subnet for Azure Firewall
+	// (managementIpConfiguration.properties.subnet.id). The management PIP is placed
+	// in this subnet as a standalone card; the Firewall icon is NOT duplicated there.
+	MgmtSubnetRef *SubnetRefDef
+
+	// MgmtPIPSymbol is the Bicep symbolic name of the PIP used in managementIpConfiguration.
+	// This PIP is placed in MgmtSubnetRef rather than attached inline to the Firewall card.
+	MgmtPIPSymbol string
+
+	// IsMgmtProxy marks a synthetic resource created to represent the Firewall's management
+	// interface in AzureFirewallManagementSubnet. The card renders as a plain white box
+	// (no Firewall icon) with the management PIP attached below.
+	IsMgmtProxy bool
+
+	// BastionDevVNetSymbol is set for Azure Bastion Developer SKU resources.
+	// It holds the Bicep symbolic name of the VNet referenced via virtualNetwork.id.
+	// These resources are placed below their VNet container rather than inside a subnet.
+	BastionDevVNetSymbol string
+
 	// VNetIntSubnet, if non-nil, identifies the subnet this App Service is VNet-integrated into.
 	// Populated from virtualNetworkSubnetId in the Bicep source.
 	VNetIntSubnet *SubnetRefDef
@@ -146,6 +165,9 @@ type Diagram struct {
 	// VNetIntConnections holds App Service → subnet VNet integration connections.
 	VNetIntConnections []*VNetIntConnection
 
+	// DNSLinks holds Private DNS Zone ↔ VNet links, rendered as solid lines.
+	DNSLinks []*DNSLinkConnection
+
 	// AnchoredLBs holds Load Balancers repositioned above their connected VMs.
 	// They are removed from their original subnet/standalone list by the builder.
 	AnchoredLBs []*Resource
@@ -167,6 +189,13 @@ type VNetIntConnection struct {
 	Subnet *SubnetContainer // target subnet
 }
 
+// DNSLinkConnection represents a Private DNS Zone ↔ VNet link, derived from a
+// Microsoft.Network/privateDnsZones/virtualNetworkLinks resource.
+type DNSLinkConnection struct {
+	Zone *Resource      // Microsoft.Network/privateDnsZones resource (the parent zone)
+	VNet *VNetContainer // target VNet container
+}
+
 // Edge represents a directed dependency arrow between two resources.
 type Edge struct {
 	// From and To are symbolic names.
@@ -186,6 +215,15 @@ type VNetContainer struct {
 
 	// Subnets derived from the VNet's properties.subnets.
 	Subnets []*SubnetContainer
+
+	// DNSZones holds Private DNS Zone resources whose VNet link targets this VNet.
+	// They are rendered directly below the VNet container.
+	DNSZones []*Resource
+
+	// BastionDev holds an Azure Bastion Developer SKU resource that references this VNet
+	// via virtualNetwork.id (no AzureBastionSubnet required). It is rendered directly
+	// below the VNet container (below DNSZones if any) with a solid connector line.
+	BastionDev *Resource
 
 	// Layout bounding box.
 	X, Y          float64
