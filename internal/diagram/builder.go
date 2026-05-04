@@ -2,6 +2,7 @@
 package diagram
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/kongou-ae/AzDiagram/internal/model"
@@ -150,6 +151,8 @@ func Build(resources []*model.Resource) *model.Diagram {
 
 	// Pass 1c: attach PIP resources inline to their Firewall / VPN GW / Bastion.
 	// A PIP is "consumed" when the network resource lists it as a dependency.
+	// Exception: Azure Firewall management PIPs are placed in the management subnet
+	// as standalone cards instead of being attached inline.
 	pipConsumed := make(map[string]bool)
 	for _, r := range resources {
 		if !isPIPConsumer(r.Type) {
@@ -157,9 +160,48 @@ func Build(resources []*model.Resource) *model.Diagram {
 		}
 		for _, dep := range r.Dependencies {
 			if pip, ok := bySymbol[dep]; ok && isPIP(pip.Type) {
+				// Skip the management PIP — it will be placed in the mgmt subnet below.
+				if dep == r.MgmtPIPSymbol {
+					continue
+				}
 				r.AttachedPIPs = append(r.AttachedPIPs, pip)
 				pipConsumed[dep] = true
 				assigned[dep] = true
+			}
+		}
+	}
+
+	// Pass 1c-2: place a proxy card (with management PIP attached) into the management subnet.
+	// The proxy card represents the Firewall's management interface without duplicating the icon.
+	for _, r := range resources {
+		if r.MgmtSubnetRef == nil || r.MgmtPIPSymbol == "" {
+			continue
+		}
+		pip, ok := bySymbol[r.MgmtPIPSymbol]
+		if !ok || assigned[pip.SymbolicName] {
+			continue
+		}
+		vc := vnetContainerBySymbol(vnetContainers, r.MgmtSubnetRef.VNetSymbol)
+		if vc == nil {
+			continue
+		}
+		for _, sc := range vc.Subnets {
+			if strings.EqualFold(sc.Name, r.MgmtSubnetRef.SubnetName) {
+				proxy := &model.Resource{
+					SymbolicName: r.SymbolicName + "__mgmt_proxy__",
+					Type:         r.Type,
+					DisplayName:  r.DisplayName,
+					Category:     r.Category,
+					ShortName:    r.ShortName,
+					TypeLabel:    r.TypeLabel,
+					IconColor:    r.IconColor,
+					IsMgmtProxy:  true,
+					AttachedPIPs: []*model.Resource{pip},
+				}
+				sc.Resources = append(sc.Resources, proxy)
+				pipConsumed[pip.SymbolicName] = true
+				assigned[pip.SymbolicName] = true
+				break
 			}
 		}
 	}
@@ -268,6 +310,10 @@ func Build(resources []*model.Resource) *model.Diagram {
 			if peLinkedConsumed[dep] {
 				continue
 			}
+			// Drop BastionDev → VNet edge (connection rendered as dedicated solid line).
+			if r.BastionDevVNetSymbol != "" && dep == r.BastionDevVNetSymbol {
+				continue
+			}
 			key := [2]string{r.SymbolicName, dep}
 			edgeSet[key] = struct{}{}
 		}
@@ -276,6 +322,13 @@ func Build(resources []*model.Resource) *model.Diagram {
 	for k := range edgeSet {
 		edges = append(edges, &model.Edge{From: k[0], To: k[1]})
 	}
+	// Sort edges for deterministic SVG output.
+	sort.Slice(edges, func(i, j int) bool {
+		if edges[i].From != edges[j].From {
+			return edges[i].From < edges[j].From
+		}
+		return edges[i].To < edges[j].To
+	})
 
 	// Build VNet peering relationships.
 	// A peering resource has SubnetRef.SubnetName == "__peering__" and its
@@ -354,6 +407,19 @@ func Build(resources []*model.Resource) *model.Diagram {
 			assigned[zone.SymbolicName] = true
 			vc.DNSZones = append(vc.DNSZones, zone)
 		}
+	}
+
+	// Place Azure Bastion Developer SKU resources below their referenced VNet.
+	for _, r := range resources {
+		if r.BastionDevVNetSymbol == "" || assigned[r.SymbolicName] {
+			continue
+		}
+		vc := vnetContainerBySymbol(vnetContainers, r.BastionDevVNetSymbol)
+		if vc == nil {
+			continue
+		}
+		vc.BastionDev = r
+		assigned[r.SymbolicName] = true
 	}
 
 	// All remaining non-VNet resources are standalone.

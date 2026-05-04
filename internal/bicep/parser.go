@@ -39,6 +39,10 @@ var (
 	// Captures: [1] VNet symbolic name, [2] subnet name (allows hyphens, e.g. "app-subnet")
 	reIPConfigSubnet = regexp.MustCompile(`\$\{(\w+)\.id\}/subnets/([\w-]+)`)
 
+	// Matches publicIPAddress: { id: sym.id } inside an ipConfig block.
+	// Captures: [1] PIP symbolic name
+	reIPConfigPIP = regexp.MustCompile(`publicIPAddress:\s*\{[^}]*id:\s*(\w+)\.id`)
+
 	// Matches parent: symbolName  (child resource declaration)
 	// Captures: [1] parent symbolic name
 	reParent = regexp.MustCompile(`(?m)^\s*parent:\s*(\w+)`)
@@ -158,6 +162,22 @@ func ParseFile(content string) ([]*model.Resource, error) {
 			}
 		}
 
+		// Azure Firewall managementIpConfiguration: extract management subnet and PIP.
+		// Use brace-counting extraction to handle nested braces correctly.
+		if strings.Contains(res.Type, "microsoft.network/azurefirewalls") {
+			if mgmtBlock := extractNamedBlock(body, "managementIpConfiguration"); mgmtBlock != "" {
+				if ms := reIPConfigSubnet.FindStringSubmatch(mgmtBlock); ms != nil {
+					res.MgmtSubnetRef = &model.SubnetRefDef{
+						VNetSymbol: ms[1],
+						SubnetName: ms[2],
+					}
+				}
+				if mp := reIPConfigPIP.FindStringSubmatch(mgmtBlock); mp != nil {
+					res.MgmtPIPSymbol = mp[1]
+				}
+			}
+		}
+
 		// VNet peering: store remote VNet symbol in SubnetRef.VNetSymbol (reused field)
 		// and mark with a sentinel SubnetName so builder can identify it.
 		if strings.Contains(res.Type, "virtualnetworkpeerings") {
@@ -180,6 +200,15 @@ func ParseFile(content string) ([]*model.Resource, error) {
 		if res.Type == "microsoft.network/privatednszones/virtualnetworklinks" {
 			if m := reDNSLinkVNet.FindStringSubmatch(body); m != nil {
 				res.LinkedServiceSymbol = m[1]
+			}
+		}
+
+		// Azure Bastion Developer SKU: references virtualNetwork directly (no subnet/PIP).
+		// Detect by checking for virtualNetwork: { id: ... } without ipConfigurations.
+		if res.Type == "microsoft.network/bastionhosts" &&
+			!strings.Contains(body, "ipConfigurations") {
+			if m := reDNSLinkVNet.FindStringSubmatch(body); m != nil {
+				res.BastionDevVNetSymbol = m[1]
 			}
 		}
 
@@ -270,6 +299,17 @@ func collectSymbolNames(content string) []string {
 
 // extractBody locates the opening '{' at or after startPos and returns the
 // complete brace-delimited block (including the outer braces).
+// extractNamedBlock finds a top-level key (e.g. "managementIpConfiguration") in body
+// and returns its brace-delimited value block (including the outer braces).
+// Returns "" if the key is not found.
+func extractNamedBlock(body, key string) string {
+	idx := strings.Index(body, key+":")
+	if idx == -1 {
+		return ""
+	}
+	return extractBody(body, idx+len(key)+1)
+}
+
 func extractBody(content string, startPos int) string {
 	i := startPos
 	for i < len(content) && content[i] != '{' {

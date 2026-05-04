@@ -16,6 +16,7 @@ azdiagram.exe
 *.test
 *.out
 coverage.html
+test/
 
 # Generated SVG output files
 *.svg

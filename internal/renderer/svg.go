@@ -118,6 +118,23 @@ func Render(d *model.Diagram) string {
 		}
 	}
 
+	// ── Bastion Developer cards and connectors ────────────────────────────────
+	// Rendered below their referenced VNet with a solid vertical line.
+	for _, vc := range d.VNets {
+		if vc.BastionDev == nil {
+			continue
+		}
+		b := vc.BastionDev
+		// Solid vertical line: VNet bottom centre → BastionDev card top centre.
+		lineX := vc.X + vc.Width/2
+		fmt.Fprintf(&sb,
+			`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="1.5"/>`+"\n",
+			lineX, vc.Y+vc.Height,
+			lineX, b.Y,
+			colorEdge)
+		renderCard(&sb, b)
+	}
+
 	// ── Standalone resource cards ─────────────────────────────────────────────
 	for _, r := range d.StandaloneResources {
 		// Render child resources (parent: relationship) to the left first.
@@ -482,10 +499,12 @@ func renderSubnet(sb *strings.Builder, sc *model.SubnetContainer, vc *model.VNet
 		absX, absY, sc.Width, sc.Height, colorSubnetFill, colorSubnetStroke)
 	sb.WriteString("\n")
 
-	// Subnet label (2 lines: name on first, address prefix on second).
+	// Subnet label (2 lines: "Subnet:<name>" on first, address prefix on second).
+	// Long names are truncated with "…" to stay within the subnet box.
+	subnetLabel := "Subnet:" + truncate(sc.Name, 20)
 	fmt.Fprintf(sb,
-		`<text x="%.1f" y="%.1f" font-family=%q font-size="10" fill="%s">Subnet: %s</text>`+"\n",
-		absX+8, absY+14, fontFamily, colorSubnetStroke, escapeXML(sc.Name))
+		`<text x="%.1f" y="%.1f" font-family=%q font-size="10" fill="%s">%s</text>`+"\n",
+		absX+8, absY+14, fontFamily, colorSubnetStroke, escapeXML(subnetLabel))
 	if sc.AddressPrefix != "" {
 		fmt.Fprintf(sb,
 			`<text x="%.1f" y="%.1f" font-family=%q font-size="9" fill="%s">%s</text>`+"\n",
@@ -611,8 +630,11 @@ func renderCard(sb *strings.Builder, r *model.Resource) {
 	centerX := x + w/2
 
 	// Try official icon first; fall back to built-in badge icon.
+	// Management proxy cards (IsMgmtProxy) skip the icon and show only a centred label.
 	var nameY float64
-	if content, vb, ok := globalIconRegistry.Lookup(r); ok {
+	if r.IsMgmtProxy {
+		nameY = y + 22
+	} else if content, vb, ok := globalIconRegistry.Lookup(r); ok {
 		// ── Official Microsoft icon ──────────────────────────────────────
 		// Embed as a nested <svg> so its viewBox scales it correctly.
 		iconX := centerX - officialIconSize/2
