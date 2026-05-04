@@ -193,6 +193,13 @@ resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
           routeTable: { id: routeTable.id }
         }
       }
+      {
+        name: 'snet-pep-jpe'
+        properties: {
+          addressPrefix: '10.1.2.0/24'
+          privateEndpointNetworkPolicies: 'Disabled'
+        }
+      }
     ]
   }
 }
@@ -560,6 +567,72 @@ resource backupPolicy 'Microsoft.RecoveryServices/vaults/backupPolicies@2024-04-
 }
 
 // =============================================================
+//  Container Registry (Premium — プライベートエンドポイント対応)
+// =============================================================
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
+  name: 'crlabhandsojpe${suffix}'
+  location: location
+  sku: { name: 'Premium' }
+  properties: {
+    adminUserEnabled: false
+    publicNetworkAccess: 'Disabled'
+  }
+}
+
+// =============================================================
+//  Private DNS Zone — privatelink.azurecr.io
+// =============================================================
+resource acrDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.azurecr.io'
+  location: 'global'
+}
+
+resource acrDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: acrDnsZone
+  name: 'link-spoke-acr'
+  location: 'global'
+  properties: {
+    virtualNetwork: { id: spokeVnet.id }
+    registrationEnabled: false
+  }
+}
+
+// =============================================================
+//  プライベートエンドポイント — ACR
+// =============================================================
+resource pepAcr 'Microsoft.Network/privateEndpoints@2023-11-01' = {
+  name: 'pep-acr-jpe-${suffix}'
+  location: location
+  properties: {
+    subnet: { id: '${spokeVnet.id}/subnets/snet-pep-jpe' }
+    privateLinkServiceConnections: [
+      {
+        name: 'conn-acr'
+        properties: {
+          privateLinkServiceId: acr.id
+          groupIds: ['registry']
+        }
+      }
+    ]
+  }
+}
+
+resource pepAcrDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = {
+  parent: pepAcr
+  name: 'acrDnsZoneGroup'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-azurecr-io'
+        properties: {
+          privateDnsZoneId: acrDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
+// =============================================================
 //  Outputs
 // =============================================================
 output suffix string = suffix
@@ -571,3 +644,4 @@ output firewallPublicIp string = afwPip.properties.ipAddress
 output lbName string = lb.name
 output logWorkspaceId string = logWorkspace.properties.customerId
 output rsvId string = rsv.id
+output acrLoginServer string = acr.properties.loginServer
