@@ -32,6 +32,7 @@ const defaultIncludeTypes = "Microsoft.Network/virtualNetworks," +
 	"Microsoft.Storage/storageAccounts," +
 	"Microsoft.OperationalInsights/workspaces," +
 	"Microsoft.CognitiveServices/accounts," +
+	"Microsoft.RecoveryServices/vaults," +
 	"Microsoft.Web/serverfarms," +
 	"Microsoft.Web/sites"
 
