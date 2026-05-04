@@ -36,22 +36,22 @@ var officialIconKeywords = map[string][]string{
 	"microsoft.web/sites":                        {"app-services"},
 
 	// ── Networking ────────────────────────────────────────────────────────
-	"microsoft.network/virtualnetworks":        {"virtual-networks"},
-	"microsoft.network/loadbalancers":          {"load-balancers"},
-	"microsoft.network/applicationgateways":    {"application-gateways"},
-	"microsoft.network/virtualnetworkgateways": {"virtual-network-gateways"},
-	"microsoft.network/networksecuritygroups":  {"network-security-groups"},
-	"microsoft.network/publicipaddresses":      {"public-ip-addresses"},
-	"microsoft.network/networkinterfaces":      {"network-interfaces"},
-	"microsoft.network/privateendpoints":       {"private-endpoint"},
-	"microsoft.network/privatednszones":        {"dns-private-zones", "dns-zones", "private-dns"},
+	"microsoft.network/virtualnetworks":                     {"virtual-networks"},
+	"microsoft.network/loadbalancers":                       {"load-balancers"},
+	"microsoft.network/applicationgateways":                 {"application-gateways"},
+	"microsoft.network/virtualnetworkgateways":              {"virtual-network-gateways"},
+	"microsoft.network/networksecuritygroups":               {"network-security-groups"},
+	"microsoft.network/publicipaddresses":                   {"public-ip-addresses"},
+	"microsoft.network/networkinterfaces":                   {"network-interfaces"},
+	"microsoft.network/privateendpoints":                    {"private-endpoint"},
+	"microsoft.network/privatednszones":                     {"dns-private-zones", "dns-zones", "private-dns"},
 	"microsoft.network/privatednszones/virtualnetworklinks": {"virtual-network", "virtual-networks"},
-	"microsoft.network/azurefirewalls":         {"firewalls"},
-	"microsoft.network/bastionhosts":           {"bastions"},
-	"microsoft.network/frontdoors":             {"front-door"},
-	"microsoft.network/trafficmanagerprofiles": {"traffic-manager-profiles"},
-	"microsoft.cdn/profiles":                   {"cdn-profiles", "content-delivery-networks"},
-	"microsoft.network/routetables":            {"route-tables"},
+	"microsoft.network/azurefirewalls":                      {"firewalls"},
+	"microsoft.network/bastionhosts":                        {"bastions"},
+	"microsoft.network/frontdoors":                          {"front-door"},
+	"microsoft.network/trafficmanagerprofiles":              {"traffic-manager-profiles"},
+	"microsoft.cdn/profiles":                                {"cdn-profiles", "content-delivery-networks"},
+	"microsoft.network/routetables":                         {"route-tables"},
 
 	// ── Storage ───────────────────────────────────────────────────────────
 	"microsoft.storage/storageaccounts": {"storage-accounts"},
@@ -71,6 +71,7 @@ var officialIconKeywords = map[string][]string{
 	// ── Security ──────────────────────────────────────────────────────────
 	"microsoft.keyvault/vaults":                        {"key-vaults"},
 	"microsoft.managedidentity/userassignedidentities": {"managed-identities"},
+	"microsoft.recoveryservices/vaults":                {"recovery-services-vaults"},
 
 	// ── Integration ───────────────────────────────────────────────────────
 	"microsoft.servicebus/namespaces":  {"service-bus"},
@@ -108,6 +109,7 @@ var officialIconNumbers = map[string]string{
 	"microsoft.sql/servers/databases": "10130", // 10130-icon-service-SQL-Database.svg
 
 	// ── Security ──────────────────────────────────────────────────────────
+	"microsoft.recoveryservices/vaults": "00017", // 00017-icon-service-Recovery-Services-Vaults.svg
 
 	// ── Monitoring ────────────────────────────────────────────────────────
 }

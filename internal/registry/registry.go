@@ -29,22 +29,22 @@ var table = map[string]entry{
 	"microsoft.web/sites": {"App", model.CategoryCompute, "#6366F1"},
 
 	// ── Networking ────────────────────────────────────────────────────────
-	"microsoft.network/virtualnetworks/subnets": {"Subnet", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/virtualnetworks":         {"VNet", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/loadbalancers":           {"LB", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/applicationgateways":     {"AppGW", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/virtualnetworkgateways":  {"VPN GW", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/networksecuritygroups":   {"NSG", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/publicipaddresses":       {"PIP", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/networkinterfaces":       {"NIC", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/privateendpoints":        {"PE", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/virtualnetworks/subnets":             {"Subnet", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/virtualnetworks":                     {"VNet", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/loadbalancers":                       {"LB", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/applicationgateways":                 {"AppGW", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/virtualnetworkgateways":              {"VPN GW", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/networksecuritygroups":               {"NSG", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/publicipaddresses":                   {"PIP", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/networkinterfaces":                   {"NIC", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/privateendpoints":                    {"PE", model.CategoryNetworking, "#2563EB"},
 	"microsoft.network/privatednszones/virtualnetworklinks": {"DNS Link", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/privatednszones":         {"Private DNS", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/azurefirewalls":          {"FW", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/bastionhosts":            {"Bastion", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/frontdoors":              {"FD", model.CategoryNetworking, "#2563EB"},
-	"microsoft.network/trafficmanagerprofiles":  {"TM", model.CategoryNetworking, "#2563EB"},
-	"microsoft.cdn/profiles":                    {"CDN", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/privatednszones":                     {"Private DNS", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/azurefirewalls":                      {"FW", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/bastionhosts":                        {"Bastion", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/frontdoors":                          {"FD", model.CategoryNetworking, "#2563EB"},
+	"microsoft.network/trafficmanagerprofiles":              {"TM", model.CategoryNetworking, "#2563EB"},
+	"microsoft.cdn/profiles":                                {"CDN", model.CategoryNetworking, "#2563EB"},
 
 	// ── Storage ───────────────────────────────────────────────────────────
 	"microsoft.storage/storageaccounts": {"SA", model.CategoryStorage, "#0891B2"},
@@ -64,6 +64,7 @@ var table = map[string]entry{
 	// ── Security ──────────────────────────────────────────────────────────
 	"microsoft.keyvault/vaults":                        {"KV", model.CategorySecurity, "#047857"},
 	"microsoft.managedidentity/userassignedidentities": {"MI", model.CategorySecurity, "#047857"},
+	"microsoft.recoveryservices/vaults":                {"RSV", model.CategorySecurity, "#047857"},
 
 	// ── Integration ───────────────────────────────────────────────────────
 	"microsoft.servicebus/namespaces":  {"SB", model.CategoryIntegration, "#D97706"},
